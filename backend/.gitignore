@@ -1,0 +1,38 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+models/*.joblib
+.pytest_cache/
+*.db
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+
+# IDE
+.vscode/
+.idea/
+
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
