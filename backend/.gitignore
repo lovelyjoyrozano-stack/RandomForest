@@ -7,16 +7,19 @@ models/*.joblib
 .pytest_cache/
 *.db
 
+
 # Environment variables and secrets
 .env
 .env.*
 !.env.example
+
 
 # Python
 venv/
 .venv/
 __pycache__/
 *.pyc
+
 
 # Flutter
 .dart_tool/
@@ -25,13 +28,17 @@ __pycache__/
 build/
 
 
+
+
 # IDE
 .vscode/
 .idea/
 
+
 .env
 .env.*
 !.env.example
+
 
 backend/.env
 backend/.env.*

@@ -35,9 +35,12 @@ class Farm(Base):
     farm_code: Mapped[str] = mapped_column(String(50), unique=True)
     farm_name: Mapped[str] = mapped_column(String(150))
     location: Mapped[str] = mapped_column(String(255))
+    barangay: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="Active")
     area_hectares: Mapped[float | None] = mapped_column(Float, nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     farmer: Mapped[User] = relationship(back_populates="farms")
@@ -62,7 +65,7 @@ class PlantingAssessment(Base):
     assessment_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     farm_id: Mapped[int] = mapped_column(ForeignKey("farms.farm_id"), index=True)
     reading_id: Mapped[int] = mapped_column(ForeignKey("climate_readings.reading_id"))
-    planting_status: Mapped[str] = mapped_column(String(20))
+    planting_status: Mapped[str] = mapped_column(String(50))
     reason: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 

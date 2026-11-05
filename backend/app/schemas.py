@@ -118,6 +118,7 @@ class FarmUpdate(BaseModel):
 
 class FarmOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     farm_id: int
     farm_code: str
     farm_name: str
@@ -125,7 +126,8 @@ class FarmOut(BaseModel):
     status: str
     area_hectares: float | None = None
     city: str | None = None
-
+    latitude: float | None = None
+    longitude: float | None = None
 
 # ----------------------------------------------------------------- climate
 class ClimateInput(BaseModel):

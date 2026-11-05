@@ -54,7 +54,7 @@ class FarmStore extends ChangeNotifier {
       body: {
         'farm_name': name,
         'location': location,
-        if (areaHectares != null) 'area_hectares': areaHectares,
+        'area_hectares': ?areaHectares,
       },
     );
 
@@ -80,7 +80,7 @@ class FarmStore extends ChangeNotifier {
       body: {
         'farm_name': name,
         'location': location,
-        if (areaHectares != null) 'area_hectares': areaHectares,
+        'area_hectares': ?areaHectares,
       },
     );
 
@@ -100,6 +100,18 @@ class FarmStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteFarm(int farmId) async {
+  await ApiClient.instance.delete('/farms/$farmId');
+
+  farms = farms.where((farm) => farm.id != farmId).toList();
+
+  if (selected?.id == farmId) {
+    selected = farms.isNotEmpty ? farms.first : null;
+  }
+
+  notifyListeners();
+}
+
   void clear() {
     farms = [];
     selected = null;
@@ -107,3 +119,4 @@ class FarmStore extends ChangeNotifier {
     notifyListeners();
   }
 }
+

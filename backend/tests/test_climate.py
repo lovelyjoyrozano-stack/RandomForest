@@ -48,3 +48,27 @@ def test_manual_assessment(client, auth, farm):
     bad = client.post("/climate/assess", headers=auth, json={
         "farm_id": farm["farm_id"], "temperature": 29, "rainfall": 5, "humidity": 140})
     assert bad.status_code == 422
+
+
+def test_advice_uses_current_weather(client, auth, farm, mock_weather, monkeypatch):
+    from app.services import weather
+
+    monkeypatch.setattr(weather, "get_current_weather", lambda city: {
+        "city": city, "weather_main": "Clear", "weather_condition": "clear sky",
+        "temperature_celsius": 39.5, "humidity_percent": 60,
+        "rainfall_mm": 0, "wind_speed_ms": 1.0, "observed_at": 0,
+    })
+    r = client.get("/climate/planting-advice", params={"farm_id": farm["farm_id"]}, headers=auth).json()
+    assert r["current_temperature_c"] == 39.5
+    assert r["planting_status"] == "NOT SUITABLE"
+    assert r["based_on"] == "current weather"
+
+
+def test_advice_falls_back_when_current_weather_fails(client, auth, farm, mock_weather, monkeypatch):
+    from app.services import weather
+
+    def boom(city):
+        raise weather.WeatherError("down")
+    monkeypatch.setattr(weather, "get_current_weather", boom)
+    r = client.get("/climate/planting-advice", params={"farm_id": farm["farm_id"]}, headers=auth)
+    assert r.status_code == 200 and r.json()["planting_status"] == "SUITABLE"

@@ -1,81 +1,20 @@
 """OpenWeather client with a small TTL cache and one place that parses forecasts."""
 import time
-from collections import Counter
 from dataclasses import dataclass, field
 from threading import Lock
-
 
 import httpx
 
 from ..config import get_settings
 
 FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
-PERIODS_24H = 8  # 3-hour steps -> 24 hours
 CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather"
-def get_current_weather(city: str) -> dict:
-    """Fetch current weather conditions from OpenWeather."""
-    settings = get_settings()
+PERIODS_24H = 8  # 3-hour steps -> 24 hours
 
-    if not settings.openweather_api_key:
-        raise WeatherError(
-            "Weather service is not configured (missing OPENWEATHER_API_KEY).",
-            503,
-        )
-
-    key = (city.strip().lower(), settings.default_country)
-    now = time.monotonic()
-
-    # Separate cache for current weather.
-    with _cache_lock:
-        cache_key = ("current:" + key[0], key[1])
-        hit = _cache.get(cache_key)
-
-        # Current conditions are cached for at most 60 seconds.
-        if hit and now - hit[0] < 60:
-            return hit[1]
-
-    try:
-        response = httpx.get(
-            CURRENT_URL,
-            params={
-                "q": f"{city},{settings.default_country}",
-                "appid": settings.openweather_api_key,
-                "units": "metric",
-            },
-            timeout=15,
-        )
-    except httpx.HTTPError:
-        raise WeatherError("Could not connect to the weather service.")
-
-    if response.status_code == 404:
-        raise WeatherError(f"City '{city}' was not found.", 404)
-
-    if response.status_code != 200:
-        raise WeatherError(
-            "The weather service returned an error. Try again shortly."
-        )
-
-    data = response.json()
-    main = data.get("main") or {}
-    weather_data = (data.get("weather") or [{}])[0]
-    wind = data.get("wind") or {}
-
-    result = {
-        "city": (data.get("name") or city),
-        "weather_main": weather_data.get("main", "Unknown"),
-        "weather_condition": weather_data.get("description", "Unknown"),
-        "temperature_celsius": main.get("temp"),
-        "feels_like_celsius": main.get("feels_like"),
-        "humidity_percent": main.get("humidity"),
-        "wind_speed_ms": wind.get("speed"),
-        "observed_at": data.get("dt"),
-        "source": "OpenWeather current weather",
-    }
-
-    with _cache_lock:
-        _cache[cache_key] = (now, result)
-
-    return result
+# Keep everything near-realtime. 60s is still well inside the free-tier quota
+# (the app refreshes once a minute per user).
+CURRENT_CACHE_SECONDS = 60
+FORECAST_CACHE_SECONDS = 60
 
 
 class WeatherError(Exception):
@@ -107,43 +46,155 @@ def clear_cache() -> None:
         _cache.clear()
 
 
-def fetch_forecast(city: str) -> dict:
-    """Return the raw OpenWeather payload for `city` (cached for a few minutes,
-    which also keeps us well inside the free-tier request quota)."""
-    settings = get_settings()
-    if not settings.openweather_api_key:
-        raise WeatherError("Weather service is not configured (missing OPENWEATHER_API_KEY).", 503)
+def _request(
+    url: str,
+    city: str,
+    settings,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
+    params = {
+        "appid": settings.openweather_api_key,
+        "units": "metric",
+    }
 
-    key = (city.strip().lower(), settings.default_country)
-    now = time.monotonic()
-    with _cache_lock:
-        hit = _cache.get(key)
-        if hit and now - hit[0] < settings.weather_cache_seconds:
-            return hit[1]
+    if latitude is not None and longitude is not None:
+        params["lat"] = latitude
+        params["lon"] = longitude
+    else:
+        params["q"] = f"{city},{settings.default_country}"
 
     try:
         response = httpx.get(
-            FORECAST_URL,
-            params={
-                "q": f"{city},{settings.default_country}",
-                "appid": settings.openweather_api_key,
-                "units": "metric",
-            },
+            url,
+            params=params,
             timeout=15,
         )
+        response.raise_for_status()
+
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise WeatherError(
+                f"City '{city}' was not found.", 404
+            )
+        raise WeatherError(
+            "The weather service returned an error. Try again shortly."
+        )
+
     except httpx.HTTPError:
-        raise WeatherError("Could not connect to the weather service.")
+        raise WeatherError(
+            "Could not connect to the weather service."
+        )
 
-    if response.status_code == 404:
-        raise WeatherError(f"City '{city}' was not found.", 404)
-    if response.status_code != 200:
-        raise WeatherError("The weather service returned an error. Try again shortly.")
+    return response.json()
+   
+def get_current_weather(
+    city: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
+    """Fetch current weather conditions from OpenWeather (cached 60s)."""
+    settings = get_settings()
+    if not settings.openweather_api_key:
+        raise WeatherError(
+            "Weather service is not configured (missing OPENWEATHER_API_KEY).",
+            503,
+        )
 
-    data = response.json()
+    if latitude is not None and longitude is not None:
+        location_key = f"{latitude:.5f},{longitude:.5f}"
+    else:
+        location_key = city.strip().lower()
+
+    now = time.monotonic()
+    cache_key = ("current:" + location_key, settings.default_country)
+
+    with _cache_lock:
+        hit = _cache.get(cache_key)
+        if hit and now - hit[0] < CURRENT_CACHE_SECONDS:
+            return hit[1]
+
+    data = _request(
+        CURRENT_URL,
+        city,
+        settings,
+        latitude,
+        longitude,
+    )
+    print("WEATHER DEBUG")
+    print("Requested city:", city)
+    print("Latitude:", latitude)
+    print("Longitude:", longitude)
+    print("API city:", data.get("name"))
+    print("API coordinates:", data.get("coord"))
+    print("API weather:", data.get("weather"))
+    print("API temperature:", (data.get("main") or {}).get("temp"))
+    print("API rainfall:", data.get("rain"))
+    print("API observation time:", data.get("dt"))
+    
+    
+    main = data.get("main") or {}
+    weather_data = (data.get("weather") or [{}])[0]
+    wind = data.get("wind") or {}
+
+    result = {
+        "city": data.get("name") or city,
+        "weather_main": weather_data.get("main", "Unknown"),
+        "weather_condition": weather_data.get("description", "Unknown"),
+        "temperature_celsius": main.get("temp"),
+        "feels_like_celsius": main.get("feels_like"),
+        "humidity_percent": main.get("humidity"),
+        "wind_speed_ms": wind.get("speed"),
+        "rainfall_mm": float((data.get("rain") or {}).get("1h", 0) or 0),
+        "observed_at": data.get("dt"),
+        "source": "OpenWeather current weather",
+    }
+
+    with _cache_lock:
+        _cache[cache_key] = (now, result)
+
+    return result
+
+def fetch_forecast(
+    city: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
+    """Return the raw OpenWeather forecast payload (cached 60s)."""
+    settings = get_settings()
+    if not settings.openweather_api_key:
+        raise WeatherError(
+            "Weather service is not configured (missing OPENWEATHER_API_KEY).",
+            503,
+        )
+
+    if latitude is not None and longitude is not None:
+        location_key = f"{latitude:.5f},{longitude:.5f}"
+    else:
+        location_key = city.strip().lower()
+
+    key = ("forecast:" + location_key, settings.default_country)
+    now = time.monotonic()
+
+    ttl = min(settings.weather_cache_seconds, FORECAST_CACHE_SECONDS)
+
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and now - hit[0] < ttl:
+            return hit[1]
+
+    data = _request(
+        FORECAST_URL,
+        city,
+        settings,
+        latitude,
+        longitude,
+    )
+
     with _cache_lock:
         _cache[key] = (now, data)
-    return data
 
+    return data
 
 def summarize(raw: dict, requested_city: str) -> ForecastSummary:
     items = (raw.get("list") or [])[:PERIODS_24H]
@@ -196,5 +247,12 @@ def summarize(raw: dict, requested_city: str) -> ForecastSummary:
     )
 
 
-def get_summary(city: str) -> ForecastSummary:
-    return summarize(fetch_forecast(city), city)
+def get_summary(
+    city: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> ForecastSummary:
+    return summarize(
+        fetch_forecast(city, latitude, longitude),
+        city,
+    )

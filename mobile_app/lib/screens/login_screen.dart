@@ -140,7 +140,7 @@ Widget build(BuildContext context) {
         // FULLSCREEN BACKGROUND IMAGE
         Positioned.fill(
           child: Image.asset(
-            'assets/images/farm_illustration.png',
+            'assets/images/dashboard_field.png',
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return const ColoredBox(

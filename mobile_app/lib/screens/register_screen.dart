@@ -70,7 +70,7 @@ Widget build(BuildContext context) {
       children: [
         // Fullscreen background image
         Image.asset(
-          'assets/images/farm_illustration.png',
+          'assets/images/dashboard_field.png',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Container(

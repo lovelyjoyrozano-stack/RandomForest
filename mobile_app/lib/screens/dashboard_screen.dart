@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../core/farm_store.dart';
@@ -26,6 +27,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static const Color _darkGreen = Color(0xFF124B30);
   static const Color _mutedText = Color(0xFF7D9684);
 
+  // 0 = Dashboard, 1 = Climate, 2 = Productivity, 3 = Records
+  int _selectedIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -35,15 +39,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _logout() async {
     await Session.instance.signOut();
     store.clear();
+
     if (!mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (_) => false,
     );
   }
 
-  void _open(Widget screen) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  void _open(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  void _selectPage(int index, {bool inDrawer = false}) {
+    if (inDrawer) {
+      Navigator.pop(context);
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,27 +73,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 800;
 
-       
-if (isWide) {
-  return Scaffold(
-    backgroundColor: _pageBg,
-    body: SizedBox.expand(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 250,
-            height: double.infinity,
-            child: _buildSidebar(),
-          ),
-          Expanded(
-            child: _buildDesktopMain(),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+        if (isWide) {
+          return Scaffold(
+            backgroundColor: _pageBg,
+            body: SizedBox.expand(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 250,
+                    child: _buildSidebar(),
+                  ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: _selectedIndex,
+                      children: [
+                        _buildDesktopMain(),
+                        const ClimateScreen(),
+                        const ProductivityScreen(),
+                        const ReportsScreen(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
         return Scaffold(
           backgroundColor: _pageBg,
@@ -80,15 +108,25 @@ if (isWide) {
             foregroundColor: _darkGreen,
             elevation: 0,
             title: const Text(
-              'RandomForest',
+              'CropWise',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           drawer: Drawer(
             backgroundColor: _sidebar,
-            child: SafeArea(child: _buildSidebar(inDrawer: true)),
+            child: SafeArea(
+              child: _buildSidebar(inDrawer: true),
+            ),
           ),
-          body: _buildMobileMain(),
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _buildMobileMain(),
+              const ClimateScreen(),
+              const ProductivityScreen(),
+              const ReportsScreen(),
+            ],
+          ),
         );
       },
     );
@@ -99,9 +137,8 @@ if (isWide) {
   // ========================================
 
   Widget _buildSidebar({bool inDrawer = false}) {
-    void go(Widget screen) {
-      if (inDrawer) Navigator.pop(context);
-      _open(screen);
+    void go(int index) {
+      _selectPage(index, inDrawer: inDrawer);
     }
 
     return Container(
@@ -122,7 +159,7 @@ if (isWide) {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 18),
               child: Text(
-                'RandomForest',
+                'CropWise',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,
@@ -135,7 +172,7 @@ if (isWide) {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 18),
               child: Text(
-                'Smart insights for thriving farms',
+                'Smart Climate Insights, Better Crop Decisions',
                 style: TextStyle(
                   color: Color(0xFFCFE0D2),
                   fontSize: 12,
@@ -143,30 +180,37 @@ if (isWide) {
               ),
             ),
             const SizedBox(height: 56),
+
             _NavItem(
               label: 'Dashboard',
-              active: true,
+              active: _selectedIndex == 0,
               activeColor: _sidebarActive,
-              onTap: () {
-                if (inDrawer) Navigator.pop(context);
-              },
+              onTap: () => go(0),
             ),
+
             _NavItem(
               label: 'Climate Monitoring',
+              active: _selectedIndex == 1,
               activeColor: _sidebarActive,
-              onTap: () => go(const ClimateScreen()),
+              onTap: () => go(1),
             ),
+
             _NavItem(
               label: 'Crop Productivity',
+              active: _selectedIndex == 2,
               activeColor: _sidebarActive,
-              onTap: () => go(const ProductivityScreen()),
+              onTap: () => go(2),
             ),
+
             _NavItem(
               label: 'Weather & Crop Productivity Records History',
+              active: _selectedIndex == 3,
               activeColor: _sidebarActive,
-              onTap: () => go(const ReportsScreen()),
+              onTap: () => go(3),
             ),
+
             const SizedBox(height: 10),
+
             _NavItem(
               label: 'Log Out',
               activeColor: _sidebarActive,
@@ -184,14 +228,23 @@ if (isWide) {
 
   Widget _buildDesktopMain() {
     return Stack(
+      fit: StackFit.expand,
       children: [
-        // Farm field at the bottom
-        const Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 190,
-          child: _FieldBackdrop(),
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/dashboard_field.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(color: _pageBg);
+            },
+          ),
+        ),
+
+        Positioned.fill(
+          child: Container(
+            color: const Color(0x33F1F6F0),
+          ),
         ),
 
         RefreshIndicator(
@@ -201,27 +254,37 @@ if (isWide) {
             builder: (context, _) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(48, 56, 48, 210),
+                padding: const EdgeInsets.fromLTRB(48, 56, 48, 40),
                 children: [
                   _buildHeader(large: true),
                   const SizedBox(height: 28),
+
                   ..._buildStoreSection(),
+
                   if (store.farms.isNotEmpty)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var i = 0; i < _cards.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 22),
-                          Expanded(
-                            child: _FeatureCard(
-                              data: _cards[i],
-                              height: 400,
-                              titleSize: 30,
-                              onTap: () => _open(_cards[i].screen),
-                            ),
-                          ),
-                        ],
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final cardWidth =
+                            (constraints.maxWidth - 44) / 3;
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < _cards.length; i++) ...[
+                              if (i > 0) const SizedBox(width: 22),
+                              SizedBox(
+                                width: cardWidth,
+                                child: _FeatureCard(
+                                  data: _cards[i],
+                                  height: 400,
+                                  titleSize: 30,
+                                  onTap: () => _selectPage(i + 1),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                 ],
               );
@@ -237,45 +300,63 @@ if (isWide) {
   // ========================================
 
   Widget _buildMobileMain() {
-    return RefreshIndicator(
-      onRefresh: store.load,
-      child: ListenableBuilder(
-        listenable: store,
-        builder: (context, _) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            children: [
-              _buildHeader(large: false),
-              const SizedBox(height: 20),
-              ..._buildStoreSection(),
-              if (store.farms.isNotEmpty)
-                for (final card in _cards) ...[
-                  _FeatureCard(
-                    data: card,
-                    height: 230,
-                    titleSize: 24,
-                    onTap: () => _open(card.screen),
-                  ),
-                  const SizedBox(height: 16),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/dashboard_field.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(color: _pageBg);
+            },
+          ),
+        ),
+
+        Positioned.fill(
+          child: Container(
+            color: const Color(0x33F1F6F0),
+          ),
+        ),
+
+        RefreshIndicator(
+          onRefresh: store.load,
+          child: ListenableBuilder(
+            listenable: store,
+            builder: (context, _) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                children: [
+                  _buildHeader(large: false),
+                  const SizedBox(height: 20),
+
+                  ..._buildStoreSection(),
+
+                  if (store.farms.isNotEmpty)
+                    for (var i = 0; i < _cards.length; i++) ...[
+                      _FeatureCard(
+                        data: _cards[i],
+                        height: 230,
+                        titleSize: 24,
+                        onTap: () => _selectPage(i + 1),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                  const SizedBox(height: 8),
                 ],
-              const SizedBox(height: 8),
-              const ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(20)),
-                child: SizedBox(
-                  height: 130,
-                  child: _FieldBackdrop(),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   // ========================================
-  // SHARED PIECES
+  // SHARED HEADER
   // ========================================
 
   Widget _buildHeader({required bool large}) {
@@ -295,7 +376,7 @@ if (isWide) {
         ),
         const SizedBox(height: 8),
         Text(
-          'Here\u2019s an overview of your farm insights and tools.',
+          'Here’s an overview of your farm insights and tools.',
           style: TextStyle(
             fontSize: large ? 19 : 14,
             fontWeight: FontWeight.w500,
@@ -306,14 +387,21 @@ if (isWide) {
     );
   }
 
-  // Error / loading / no farm / farm selector (same logic as before)
+  // ========================================
+  // FARM SECTION
+  // ========================================
+
   List<Widget> _buildStoreSection() {
     return [
       if (store.error != null)
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: ErrorBanner(store.error!, onRetry: store.load),
+          child: ErrorBanner(
+            store.error!,
+            onRetry: store.load,
+          ),
         ),
+
       if (store.loading && store.farms.isEmpty)
         const Center(
           child: Padding(
@@ -323,13 +411,14 @@ if (isWide) {
         )
       else if (store.farms.isEmpty && store.error == null)
         NoFarmNotice(
-  onAdd: () => _open(
-    const FarmsScreen(openAddDialogOnLoad: true),
-  ),
-)
+          onAdd: () => _open(
+            const FarmsScreen(openAddDialogOnLoad: true),
+          ),
+        )
       else if (store.farms.isNotEmpty) ...[
         FarmSelectorBar(store: store),
         const SizedBox(height: 4),
+
         Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
@@ -338,38 +427,48 @@ if (isWide) {
             label: const Text('Manage farms'),
           ),
         ),
+
         if (store.selected?.areaHectares == null)
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              'Tip: set this farm\'s area in Manage farms to unlock yield forecasts.',
+              'Tip: set this farm’s area in Manage farms to unlock yield forecasts.',
               style: TextStyle(color: statusWarn),
             ),
           ),
+
         const SizedBox(height: 12),
       ],
     ];
   }
 
+  // ========================================
+  // FEATURE CARDS
+  // ========================================
+
   static const List<_CardData> _cards = [
     _CardData(
       title: 'Climate\nMonitoring',
-      description: 'Track weather conditions\nand forecasts for smarter\ndecisions.',
-      asset: 'assets/images/card_climate.png',
+      description:
+          'Track weather conditions\nand forecasts for smarter\ndecisions.',
+      asset: 'assets/images/climate_monitoring.png',
       variant: 0,
       screen: ClimateScreen(),
     ),
     _CardData(
       title: 'Crop Productivity',
-      description: 'Record harvested and sold\nsacks to monitor your farm\nprofit and productivity.',
-      asset: 'assets/images/card_productivity.png',
+      description:
+          'Record harvested and sold\nsacks to monitor your farm\nprofit and productivity.',
+      asset: 'assets/images/crop_productivity.png',
       variant: 1,
       screen: ProductivityScreen(),
     ),
     _CardData(
       title: 'Weather & Crop Productivity Records History',
-      description: 'View past weather data\nand crop productivity records\nfor easy monitoring.',
-      asset: 'assets/images/card_records.png',
+      description:
+          'View past weather data\nand crop productivity records\nfor easy monitoring.',
+      asset:
+          'assets/images/weather&crop_productivity_record_history.png',
       variant: 2,
       screen: ReportsScreen(),
     ),
@@ -405,13 +504,19 @@ class _NavItem extends StatelessWidget {
           onTap: onTap,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 17,
+            ),
             child: Text(
               label,
               style: TextStyle(
-                color: active ? Colors.white : const Color(0xFFDCEBDD),
+                color: active
+                    ? Colors.white
+                    : const Color(0xFFDCEBDD),
                 fontSize: 16,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                fontWeight:
+                    active ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ),
@@ -457,60 +562,74 @@ class _FeatureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFDCE9D8),
+      color: const Color(0xE6DCE9D8),
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
-      elevation: 0,
+      elevation: 2,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
           height: height,
-          child: Stack(
-            children: [
-              // Illustration at the bottom of the card
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: height * 0.42,
-                child: Image.asset(
-                  data.asset,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.bottomCenter,
-                  errorBuilder: (context, error, stackTrace) => CustomPaint(
-                    painter: _HillsPainter(data.variant),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    data.asset,
+                    width: double.infinity,
+                    height: height * 0.40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: height * 0.40,
+                        color: const Color(0xFFB5CDAE),
+                        child: Icon(
+                          data.variant == 0
+                              ? Icons.cloud_outlined
+                              : data.variant == 1
+                                  ? Icons.agriculture
+                                  : Icons.history,
+                          size: 50,
+                          color: const Color(0xFF124B30),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(28, 32, 24, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      data.title,
-                      style: TextStyle(
-                        fontSize: titleSize,
-                        height: 1.2,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF124B30),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      data.description,
+                const SizedBox(height: 18),
+
+                Text(
+                  data.title.replaceAll('\n', ' '),
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    height: 1.15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF124B30),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      data.description.replaceAll('\n', ' '),
                       style: const TextStyle(
                         fontSize: 15,
                         height: 1.5,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF86A08D),
+                        color: Color(0xFF52745C),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -519,7 +638,7 @@ class _FeatureCard extends StatelessWidget {
 }
 
 // ========================================
-// FIELD BACKDROP (bottom of the page)
+// FIELD BACKDROP
 // ========================================
 
 class _FieldBackdrop extends StatelessWidget {
@@ -541,7 +660,7 @@ class _FieldBackdrop extends StatelessWidget {
 }
 
 // ========================================
-// FALLBACK PAINTERS (used if the images are missing)
+// FALLBACK PAINTERS
 // ========================================
 
 class _HillsPainter extends CustomPainter {
@@ -558,12 +677,19 @@ class _HillsPainter extends CustomPainter {
       ),
       Paint()..color = const Color(0xFF6B5B3E),
     );
-    canvas.drawCircle(base.translate(0, -s * 0.6), s * 0.38, Paint()..color = color);
+
+    canvas.drawCircle(
+      base.translate(0, -s * 0.6),
+      s * 0.38,
+      Paint()..color = color,
+    );
+
     canvas.drawCircle(
       base.translate(-s * 0.25, -s * 0.4),
       s * 0.28,
       Paint()..color = color,
     );
+
     canvas.drawCircle(
       base.translate(s * 0.25, -s * 0.4),
       s * 0.28,
@@ -576,7 +702,6 @@ class _HillsPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // back hills
     canvas.drawPath(
       Path()
         ..moveTo(0, h * 0.55)
@@ -588,7 +713,6 @@ class _HillsPainter extends CustomPainter {
       Paint()..color = const Color(0xFFB5CDAE),
     );
 
-    // middle hill
     canvas.drawPath(
       Path()
         ..moveTo(0, h * 0.72)
@@ -599,7 +723,6 @@ class _HillsPainter extends CustomPainter {
       Paint()..color = const Color(0xFF8DB56F),
     );
 
-    // front hill
     canvas.drawPath(
       Path()
         ..moveTo(0, h * 0.86)
@@ -607,23 +730,36 @@ class _HillsPainter extends CustomPainter {
         ..lineTo(w, h)
         ..lineTo(0, h)
         ..close(),
-      Paint()..color = variant == 0
-          ? const Color(0xFF4F8040)
-          : const Color(0xFF5E9440),
+      Paint()
+        ..color = variant == 0
+            ? const Color(0xFF4F8040)
+            : const Color(0xFF5E9440),
     );
 
     switch (variant) {
       case 0:
-        _tree(canvas, Offset(w * 0.12, h * 0.62), h * 0.3, const Color(0xFF4F8A45));
-        _tree(canvas, Offset(w * 0.2, h * 0.64), h * 0.26, const Color(0xFF4F8A45));
+        _tree(
+          canvas,
+          Offset(w * 0.12, h * 0.62),
+          h * 0.3,
+          const Color(0xFF4F8A45),
+        );
+        _tree(
+          canvas,
+          Offset(w * 0.2, h * 0.64),
+          h * 0.26,
+          const Color(0xFF4F8A45),
+        );
         break;
+
       case 1:
-        // house
         final house = Offset(w * 0.72, h * 0.58);
+
         canvas.drawRect(
           Rect.fromLTWH(house.dx, house.dy, w * 0.1, h * 0.12),
           Paint()..color = const Color(0xFFC79B5E),
         );
+
         canvas.drawPath(
           Path()
             ..moveTo(house.dx - w * 0.01, house.dy)
@@ -632,17 +768,36 @@ class _HillsPainter extends CustomPainter {
             ..close(),
           Paint()..color = const Color(0xFF8B5E34),
         );
-        _tree(canvas, Offset(w * 0.64, h * 0.6), h * 0.3, const Color(0xFF5E9A48));
+
+        _tree(
+          canvas,
+          Offset(w * 0.64, h * 0.6),
+          h * 0.3,
+          const Color(0xFF5E9A48),
+        );
         break;
+
       default:
-        _tree(canvas, Offset(w * 0.82, h * 0.78), h * 0.8, const Color(0xFF5E9A48));
-        // fence
+        _tree(
+          canvas,
+          Offset(w * 0.82, h * 0.78),
+          h * 0.8,
+          const Color(0xFF5E9A48),
+        );
+
         final fence = Paint()
           ..color = const Color(0xFFEFE9D8)
           ..strokeWidth = 3;
-        canvas.drawLine(Offset(w * 0.05, h * 0.84), Offset(w * 0.6, h * 0.76), fence);
+
+        canvas.drawLine(
+          Offset(w * 0.05, h * 0.84),
+          Offset(w * 0.6, h * 0.76),
+          fence,
+        );
+
         for (var i = 0; i < 8; i++) {
           final x = w * (0.06 + i * 0.07);
+
           canvas.drawLine(
             Offset(x, h * (0.85 - i * 0.012)),
             Offset(x, h * (0.76 - i * 0.012)),
@@ -653,8 +808,9 @@ class _HillsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _HillsPainter oldDelegate) =>
-      oldDelegate.variant != variant;
+  bool shouldRepaint(covariant _HillsPainter oldDelegate) {
+    return oldDelegate.variant != variant;
+  }
 }
 
 class _FieldPainter extends CustomPainter {
@@ -663,7 +819,6 @@ class _FieldPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // distant mountains
     canvas.drawPath(
       Path()
         ..moveTo(0, h * 0.38)
@@ -676,31 +831,45 @@ class _FieldPainter extends CustomPainter {
       Paint()..color = const Color(0xFFC3D9BE),
     );
 
-    // tree line
     final bush = Paint()..color = const Color(0xFF6FA255);
+
     for (var x = 0.0; x < w; x += 26) {
-      canvas.drawCircle(Offset(x, h * 0.5 + (x % 52 == 0 ? 0 : 6)), 17, bush);
+      canvas.drawCircle(
+        Offset(x, h * 0.5 + (x % 52 == 0 ? 0 : 6)),
+        17,
+        bush,
+      );
     }
 
-    // field
     final fieldTop = h * 0.52;
+
     canvas.drawRect(
       Rect.fromLTWH(0, fieldTop, w, h - fieldTop),
       Paint()
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF7DB04F), Color(0xFF4E8A2F)],
-        ).createShader(Rect.fromLTWH(0, fieldTop, w, h - fieldTop)),
+          colors: [
+            Color(0xFF7DB04F),
+            Color(0xFF4E8A2F),
+          ],
+        ).createShader(
+          Rect.fromLTWH(0, fieldTop, w, h - fieldTop),
+        ),
     );
 
-    // crop rows converging to the center
     final line = Paint()
       ..color = const Color(0xFF3E7A28)
       ..strokeWidth = 3;
+
     final vanish = Offset(w * 0.5, fieldTop);
+
     for (var i = -12; i <= 12; i++) {
-      canvas.drawLine(vanish, Offset(w * 0.5 + i * (w / 12), h), line);
+      canvas.drawLine(
+        vanish,
+        Offset(w * 0.5 + i * (w / 12), h),
+        line,
+      );
     }
   }
 
