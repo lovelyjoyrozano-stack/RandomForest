@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../core/farm_store.dart';
@@ -368,7 +367,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Text(
           'Welcome back, $name!',
           style: TextStyle(
-            fontSize: large ? 40 : 26,
+            fontSize: large ? 40 : 25,
+            height: large ? 1.15 : 1.2,
             fontWeight: FontWeight.bold,
             color: _darkGreen,
             letterSpacing: -0.6,

@@ -73,6 +73,7 @@ def current_weather(
         
         farm.longitude,
     )
+
 @router.get("/climate/planting-advice")
 def planting_advice(
     farm_id: int = Query(..., gt=0),
@@ -103,38 +104,65 @@ def planting_advice(
         return float(v) if isinstance(v, (int, float)) else default
 
     # Current weather measurements
-    temperature = _num(
+    current_temperature = _num(
         cur.get("temperature_celsius"),
         s.avg_temperature,
     )
-    humidity = _num(
+
+    current_humidity = _num(
         cur.get("humidity_percent"),
         s.avg_humidity,
+    )
+
+    current_rainfall = _num(
+        cur.get("rainfall_mm"),
+        0.0,
     )
 
     condition = cur.get("weather_condition") or s.weather_condition
     current_main = str(cur.get("weather_main", "")).lower()
 
-    # Forecast rainfall over the next 24 hours
-    rainfall = s.total_rainfall
+    # Forecast measurements
+    forecast_temperature = _num(
+        s.avg_temperature,
+        current_temperature,
+    )
 
-    # Current temperature heat warning
-    if temperature >= 38:
+    forecast_rainfall = _num(
+        s.total_rainfall,
+        0.0,
+    )
+
+    rain_probability = _num(
+        s.max_rain_probability,
+        0.0,
+    )
+
+    # Rainfall risk indicator
+    rainfall_indicator = current_rainfall + forecast_rainfall
+
+    # Heat warning
+    highest_temperature = max(
+        current_temperature,
+        forecast_temperature,
+    )
+
+    if highest_temperature >= 38:
         heat_warning = "Extreme Heat Alert"
-    elif temperature >= 35:
+    elif highest_temperature >= 35:
         heat_warning = "High Temperature Alert"
     else:
         heat_warning = "No Heat Warning"
 
-    # Forecast rain warning
-    if rainfall >= 50 or s.max_rain_probability >= 80:
+    # Rain warning
+    if rainfall_indicator >= 50:
         rain_warning = "Heavy Rain Alert"
-    elif rainfall >= 20 or s.max_rain_probability >= 50:
+    elif rainfall_indicator >= 20 or rain_probability >= 50:
         rain_warning = "Rainfall Caution"
     else:
         rain_warning = "No Rain Warning"
 
-    # Check thunderstorms in current weather or forecast
+    # Thunderstorm detection
     has_thunderstorm = (
         "thunderstorm" in current_main
         or any(
@@ -143,11 +171,13 @@ def planting_advice(
         )
     )
 
-    # General planting assessment using forecast average temperature
+    # Planting assessment
     status, reason = advisor.assess_planting(
-        s.avg_temperature,
-        rainfall,
-        s.max_rain_probability,
+        current_temperature=current_temperature,
+        forecast_temperature=forecast_temperature,
+        current_rainfall=current_rainfall,
+        forecast_rainfall=forecast_rainfall,
+        rain_probability=rain_probability,
         has_thunderstorm=has_thunderstorm,
     )
 
@@ -169,11 +199,11 @@ def planting_advice(
         reading_id = _save(
             db,
             farm.farm_id,
-            temperature=temperature,
-            rainfall=rainfall,
-            humidity=humidity,
+            temperature=current_temperature,
+            rainfall=forecast_rainfall,
+            humidity=current_humidity,
             condition=condition,
-            pop=s.max_rain_probability,
+            pop=rain_probability,
             status=status,
             reason=reason,
         )
@@ -189,25 +219,34 @@ def planting_advice(
         "crop_name": "General Crops",
         "assessment_type": "General Weather-Based Planting Suitability",
         "forecast_periods_analyzed": len(s.periods),
+
         "based_on": (
-            "current weather and forecast"
+            "current weather and next 24-hour forecast"
             if cur
             else "forecast (current weather unavailable)"
         ),
 
-        "current_temperature_c": round(temperature, 2),
-        "current_humidity_percent": round(humidity, 2),
-        "average_temperature_c": round(s.avg_temperature, 2),
-        "assessment_temperature_c": round(s.avg_temperature, 2),
+        "current_temperature_c": round(current_temperature, 2),
+        "forecast_average_temperature_c": round(
+            forecast_temperature, 2
+        ),
+        "assessment_temperature_c": round(highest_temperature, 2),
+
+        "current_humidity_percent": round(current_humidity, 2),
+        "average_humidity_percent": round(s.avg_humidity, 2),
+
+        "current_rainfall_mm": round(current_rainfall, 2),
+        "forecast_rainfall_mm": round(forecast_rainfall, 2),
+        "rainfall_risk_indicator_mm": round(
+            rainfall_indicator, 2
+        ),
+
+        "maximum_rain_probability_percent": round(
+            rain_probability, 2
+        ),
 
         "heat_warning": heat_warning,
         "rain_warning": rain_warning,
-
-        "forecast_rainfall_mm": round(rainfall, 2),
-        "average_humidity_percent": round(s.avg_humidity, 2),
-        "maximum_rain_probability_percent": round(
-            s.max_rain_probability, 2
-        ),
 
         "weather_condition": condition,
         "conditions_24h": s.conditions_24h,
@@ -216,6 +255,7 @@ def planting_advice(
         "reading_id": reading_id,
         "forecasts": s.periods,
     }
+
 @router.post("/climate/assess")
 def assess_climate(
     data: ClimateInput, db: Session = Depends(get_db), user: User = Depends(get_current_user)

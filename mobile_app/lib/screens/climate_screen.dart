@@ -316,7 +316,7 @@ Widget _heatWarningPanel() {
                 final wide = c.maxWidth >= 820;
                 return ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(wide ? 24 : 16),
+                  padding: EdgeInsets.all(wide ? 24 : (c.maxWidth < 380 ? 10 : 14)),
                   children: [
                     _header(wide),
                     const SizedBox(height: 16),

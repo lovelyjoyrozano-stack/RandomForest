@@ -24,9 +24,12 @@ class Thresholds:
 DEFAULT_THRESHOLDS = Thresholds()
 
 
+
 def assess_planting(
-    avg_temperature: float,
-    rainfall_mm: float,
+    current_temperature: float,
+    forecast_temperature: float,
+    current_rainfall: float,
+    forecast_rainfall: float,
     rain_probability: float,
     has_thunderstorm: bool = False,
     t: Thresholds = DEFAULT_THRESHOLDS,
@@ -34,61 +37,69 @@ def assess_planting(
 
     warnings = []
 
+    # Check current and forecast temperature
+    highest_temperature = max(
+        current_temperature,
+        forecast_temperature,
+    )
+
+    # Check current and forecast rainfall
+    total_rainfall_indicator = (
+        current_rainfall + forecast_rainfall
+    )
+
     # Extreme rainfall
-    if (
-        rainfall_mm >= t.rain_mm_not_suitable
-        or rain_probability >= t.pop_not_suitable
-    ):
+    if total_rainfall_indicator >= t.rain_mm_not_suitable:
         return NOT_SUITABLE, (
-            "Unfavorable weather conditions were detected. "
-            "Consider postponing planting until weather conditions "
-            "improve. Check field drainage before planting."
+            "Current and upcoming rainfall indicate unfavorable "
+            "conditions. Consider postponing planting and monitor "
+            "field drainage."
         )
 
-    # Thunderstorm
+    # Thunderstorm detection
     if has_thunderstorm:
         return CAUTION, (
             "Thunderstorms are detected in the current weather or "
-            "forecast. Avoid field activities during thunderstorms "
-            "and monitor upcoming weather conditions."
+            "forecast. Monitor weather conditions and avoid field "
+            "activities during thunderstorms."
         )
 
     # Extreme temperature
-    if avg_temperature >= t.temp_not_suitable:
+    if highest_temperature >= t.temp_not_suitable:
         return NOT_SUITABLE, (
-            "Unfavorable weather conditions were detected due to "
-            "extreme temperatures. Consider postponing planting "
-            "until conditions improve."
+            "Current or forecast temperature is extremely high. "
+            "Consider postponing planting until conditions improve."
         )
 
     # Moderate rainfall
-    if rainfall_mm >= t.rain_mm_caution:
+    if total_rainfall_indicator >= t.rain_mm_caution:
         warnings.append(
-            "Forecast rainfall may affect soil moisture and field conditions."
+            "Current and forecast rainfall may affect soil moisture "
+            "and field conditions."
         )
 
-    # High rainfall probability
+    # High probability of rain
     if rain_probability >= t.pop_caution:
         warnings.append(
-            "There is a considerable chance of rain in the forecast."
+            "There is a considerable chance of rain within the next 24 hours."
         )
 
     # High temperature
-    if avg_temperature >= t.temp_caution:
+    if highest_temperature >= t.temp_caution:
         warnings.append(
-            "High temperature may affect seed establishment and young crops."
+            "Current or forecast temperature is high and may affect "
+            "seed establishment."
         )
 
     if warnings:
         return CAUTION, " ".join(warnings) + (
-            " Monitor the weather and take necessary precautions "
-            "before planting."
+            " Monitor weather and soil conditions before planting."
         )
 
     return SUITABLE, (
-        "Current weather conditions are favorable for planting. "
-        "No major weather-related risks were detected. "
-        "Check soil conditions and crop-specific requirements before planting."
+        "Current weather and the next 24-hour forecast are favorable "
+        "for planting. No major weather-related risks were detected. "
+        "Check soil conditions and crop-specific requirements."
     )
 
 

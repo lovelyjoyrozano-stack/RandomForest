@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
@@ -91,7 +92,7 @@ Widget build(BuildContext context) {
 
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isWide ? 40 : 20,
+                  horizontal: isWide ? 40 : (constraints.maxWidth < 380 ? 12 : 20),
                   vertical: 24,
                 ),
                 child: ConstrainedBox(
@@ -486,6 +487,3 @@ class _BrandPanel extends StatelessWidget {
     );
   }
 }
-
-
-

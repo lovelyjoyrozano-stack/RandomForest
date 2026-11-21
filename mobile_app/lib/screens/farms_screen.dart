@@ -260,8 +260,9 @@ class _FarmsScreenState extends State<FarmsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Container(
-                      width: 380,
-                      padding: const EdgeInsets.all(30),
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxWidth: 380),
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.94),
                         borderRadius: BorderRadius.circular(24),
@@ -595,7 +596,9 @@ class _FarmDialogState extends State<_FarmDialog> {
       ),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 360,
+          width: MediaQuery.sizeOf(context).width < 420
+              ? MediaQuery.sizeOf(context).width - 88
+              : 360,
           child: Form(
             key: _formKey,
             child: Column(

@@ -1,3 +1,5 @@
+
+
 import 'package:flutter/material.dart';
 import '../core/api_client.dart';
 import '../core/farm_store.dart';
@@ -18,6 +20,7 @@ class ReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = FarmStore.instance;
+    final isCompact = MediaQuery.sizeOf(context).width < 520;
 
     return DefaultTabController(
       length: 2,
@@ -25,7 +28,7 @@ class ReportsScreen extends StatelessWidget {
         backgroundColor: pageBackground,
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          toolbarHeight: 82,
+          toolbarHeight: isCompact ? 68 : 82,
           elevation: 0,
           foregroundColor: Colors.white,
           flexibleSpace: const DecoratedBox(
@@ -40,23 +43,25 @@ class ReportsScreen extends StatelessWidget {
               ),
             ),
           ),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.cloud_queue_rounded, size: 37),
-              SizedBox(width: 18),
+              Icon(Icons.cloud_queue_rounded, size: isCompact ? 27 : 37),
+              SizedBox(width: isCompact ? 9 : 18),
               SizedBox(
-                height: 42,
-                child: VerticalDivider(
+                height: isCompact ? 34 : 42,
+                child: const VerticalDivider(
                   color: Colors.white54,
                   thickness: 2,
                 ),
               ),
-              SizedBox(width: 18),
+              SizedBox(width: isCompact ? 9 : 18),
               Expanded(
                 child: Text(
                   'Weather & Productivity Record History',
+                  maxLines: isCompact ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 21,
+                    fontSize: isCompact ? 14 : 21,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -67,7 +72,7 @@ class ReportsScreen extends StatelessWidget {
             preferredSize: const Size.fromHeight(76),
             child: Container(
               color: const Color(0xFFF0F6F0),
-              padding: const EdgeInsets.fromLTRB(24, 9, 24, 0),
+              padding: EdgeInsets.fromLTRB(isCompact ? 8 : 24, 9, isCompact ? 8 : 24, 0),
               child: TabBar(
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: const BoxDecoration(
@@ -85,19 +90,19 @@ class ReportsScreen extends StatelessWidget {
                 dividerColor: const Color(0xFFDCE8DD),
                 labelColor: forestGreen,
                 unselectedLabelColor: Colors.grey.shade600,
-                labelStyle: const TextStyle(
-                  fontSize: 16,
+                labelStyle: TextStyle(
+                  fontSize: isCompact ? 12 : 16,
                   fontWeight: FontWeight.bold,
                 ),
-                tabs: const [
+                tabs: [
                   Tab(
                     height: 65,
-                    icon: Icon(Icons.agriculture_rounded, size: 27),
+                    icon: Icon(Icons.agriculture_rounded, size: isCompact ? 21 : 27),
                     text: 'Weather History',
                   ),
                   Tab(
                     height: 65,
-                    icon: Icon(Icons.insert_chart_rounded, size: 27),
+                    icon: Icon(Icons.insert_chart_rounded, size: isCompact ? 21 : 27),
                     text: 'Productivity History',
                   ),
                 ],

@@ -1,3 +1,5 @@
+
+
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
@@ -222,7 +224,7 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.symmetric(
-                    horizontal: isWide ? 32 : 20,
+                    horizontal: isWide ? 32 : (constraints.maxWidth < 380 ? 12 : 16),
                     vertical: 24,
                   ),
                   child: Center(
